@@ -86,7 +86,7 @@ const CartDrawer: React.FC = () => {
                         className="flex-shrink-0"
                       >
                         <img
-                          src={item.product?.images?.[0]?.imageUrl || 'https://via.placeholder.com/80x80?text=No+Image'}
+                          src={item.product?.images?.[0]?.imageUrl || 'https://placehold.co/80x80?text=No+Image'}
                           alt={item.product?.name}
                           className="w-20 h-20 object-cover rounded-lg"
                         />

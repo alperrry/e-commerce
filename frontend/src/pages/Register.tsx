@@ -179,7 +179,7 @@ const Register: React.FC = () => {
                       message: 'Şifre en az 8 karakter olmalıdır'
                     },
                     pattern: {
-                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/,
+                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&._-]{8,}$/,
                       message: 'Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir'
                     }
                   })}

@@ -18,10 +18,11 @@ const Header: React.FC = () => {
   const dispatch = useDispatch();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const { cart } = useSelector((state: RootState) => state.cart);
-  
+  const wishlistItems = useSelector((state: RootState) => state.wishlist.items);  // <-- eklendi
+
   const cartItemCount = cart?.cartItems?.reduce((total, item) => total + item.quantity, 0) || 0;
 
   const handleSearch = (e: React.FormEvent) => {
@@ -54,7 +55,7 @@ const Header: React.FC = () => {
             <Link to="/" className="text-2xl font-bold text-purple-700">
               ShopHub
             </Link>
-            
+
             {/* Search - Hidden on mobile */}
             <form onSubmit={handleSearch} className="hidden md:flex items-center bg-gray-100 rounded-lg px-4 py-2 w-96">
               <FiSearch className="text-gray-500 mr-2" />
@@ -67,7 +68,7 @@ const Header: React.FC = () => {
               />
             </form>
           </div>
-          
+
           {/* Right Icons */}
           <div className="flex items-center space-x-6">
             {/* User Menu */}
@@ -75,7 +76,7 @@ const Header: React.FC = () => {
               <button className="text-gray-600 hover:text-gray-800 transition">
                 <FiUser size={24} />
               </button>
-              
+
               {/* Dropdown */}
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 {isAuthenticated ? (
@@ -109,12 +110,17 @@ const Header: React.FC = () => {
                 )}
               </div>
             </div>
-            
+
             {/* Wishlist */}
-            <button className="text-gray-600 hover:text-gray-800 transition hidden md:block">
+            <Link to="/wishlist" className="relative text-gray-600 hover:text-gray-800 transition hidden md:block">
               <FiHeart size={24} />
-            </button>
-            
+              {wishlistItems.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {wishlistItems.length}
+                </span>
+              )}
+            </Link>
+
             {/* Cart */}
             <button
               onClick={() => dispatch(toggleCart())}
@@ -127,7 +133,7 @@ const Header: React.FC = () => {
                 </span>
               )}
             </button>
-            
+
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -137,7 +143,7 @@ const Header: React.FC = () => {
             </button>
           </div>
         </div>
-        
+
         {/* Navigation - Desktop */}
         <nav className="hidden md:block py-4">
           <ul className="flex space-x-8">
@@ -164,7 +170,7 @@ const Header: React.FC = () => {
           </ul>
         </nav>
       </div>
-      
+
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white border-t">
@@ -182,7 +188,7 @@ const Header: React.FC = () => {
                 />
               </div>
             </form>
-            
+
             {/* Mobile Navigation */}
             <ul className="space-y-2">
               <li>

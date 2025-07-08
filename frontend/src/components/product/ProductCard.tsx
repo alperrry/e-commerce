@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import * as Icons from 'react-icons/fi';
 import { Product } from '../../types';
 import { addToCart } from '../../store/slices/cartSlice';
-import { AppDispatch } from '../../store';
+import { toggleWishlist } from '../../store/slices/wishlistSlice';
+import { AppDispatch, RootState } from '../../store';
 
 const FiHeart = Icons.FiHeart as any;
 const FiShoppingCart = Icons.FiShoppingCart as any;
@@ -15,10 +16,17 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const wishlistItems = useSelector((state: RootState) => state.wishlist.items);
+  const isInWishlist = wishlistItems.some(item => item.id === product.id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     dispatch(addToCart({ productId: product.id, quantity: 1 }));
+  };
+
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    dispatch(toggleWishlist(product));
   };
 
   const calculateDiscountPercentage = () => {
@@ -37,7 +45,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="relative overflow-hidden h-64">
           {/* Product Image */}
           <img
-            src={mainImage?.imageUrl || 'https://via.placeholder.com/300x300?text=No+Image'}
+            src={mainImage?.imageUrl || 'https://placehold.co/300x300?text=No+Image'}
             alt={mainImage?.altText || product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -57,14 +65,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           
           {/* Wishlist Button */}
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              // TODO: Implement wishlist functionality
-              console.log('Add to wishlist:', product.id);
-            }}
-            className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition opacity-0 group-hover:opacity-100"
+            onClick={handleToggleWishlist}
+            className={`absolute top-2 right-2 p-2 rounded-full shadow-md transition opacity-0 group-hover:opacity-100 ${
+              isInWishlist ? 'bg-red-500 text-white' : 'bg-white hover:bg-gray-100'
+            }`}
+            title={isInWishlist ? 'Favorilerden Çıkar' : 'Favorilere Ekle'}
           >
-            <FiHeart size={16} className="text-gray-600" />
+            <FiHeart size={16} className={isInWishlist ? 'fill-current' : 'text-gray-600'} />
           </button>
         </div>
         
@@ -116,6 +123,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
           
           {/* Stock Status */}
+          <div className="h-5 mt-2">
           {product.stockQuantity < 5 && product.stockQuantity > 0 && (
             <p className="text-xs text-orange-600 mt-2">
               Son {product.stockQuantity} ürün!
@@ -126,7 +134,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <p className="text-xs text-red-600 mt-2">
               Stokta yok
             </p>
-          )}
+          )}</div>
         </div>
       </div>
     </Link>
