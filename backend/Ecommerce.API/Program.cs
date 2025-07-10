@@ -74,10 +74,25 @@ builder.Services.AddCors(options =>
             builder.WithOrigins("http://localhost:3000") // React app URL
                    .AllowAnyHeader()
                    .AllowAnyMethod()
-                   .AllowCredentials();
+                   .AllowCredentials()
+                   .SetPreflightMaxAge(TimeSpan.FromMinutes(10)); // Preflight cache
         });
 });
 
+// Ayrýca development ortamýnda daha esnek CORS policy ekleyebiliriz
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("Development",
+            builder =>
+            {
+                builder.AllowAnyOrigin()
+                       .AllowAnyHeader()
+                       .AllowAnyMethod();
+            });
+    });
+}
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
 

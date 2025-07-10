@@ -16,11 +16,13 @@ import Register from './pages/Register';
 import CartDrawer from './components/cart/CartDrawer';
 import { fetchCart } from './store/slices/cartSlice';
 import { AppDispatch } from './store';
-
+import CategoryManagement from './pages/admin/CategoryManagement';
 // Admin imports
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProductManagement from './pages/admin/ProductManagement';
+import UserManagement from './pages/admin/UserManagement';
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
@@ -34,7 +36,7 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <CartDrawer />
-      
+
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -48,11 +50,15 @@ function App() {
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          
+
           {/* Admin Routes */}
           <Route element={<ProtectedRoute adminOnly={true} />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
+              <Route path="dashboard" element={<AdminDashboard />} /> {/* Bu satırı ekleyin */}
+              <Route path="categories" element={<CategoryManagement />} />
+              <Route path="products" element={<ProductManagement />} />
+              <Route path="users" element={<UserManagement />} />
               {/* Diğer admin sayfaları buraya eklenecek */}
             </Route>
           </Route>

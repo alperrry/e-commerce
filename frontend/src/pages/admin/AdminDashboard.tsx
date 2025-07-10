@@ -12,6 +12,7 @@ const FiTrendingDown = Icons.FiTrendingDown as any;
 const FiArrowRight = Icons.FiArrowRight as any;
 const FiClock = Icons.FiClock as any;
 const FiAlertCircle = Icons.FiAlertCircle as any;
+const FiRefreshCw = Icons.FiRefreshCw as any;
 
 interface DashboardStats {
   totalProducts: number;
@@ -28,6 +29,7 @@ interface RecentOrder {
   id: number;
   orderNumber: string;
   customerName: string;
+  customerEmail: string;
   totalAmount: number;
   status: string;
   orderDate: string;
@@ -46,61 +48,57 @@ const AdminDashboard: React.FC = () => {
   });
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    
+    // Debug: Check admin status
+    checkAdminStatus();
+    
+    // Auto refresh her 30 saniyede bir
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const checkAdminStatus = async () => {
     try {
-      setLoading(true);
-      // Gerçek API çağrıları yapılacak
-      // const statsResponse = await api.get('/admin/dashboard/stats');
-      // const ordersResponse = await api.get('/admin/dashboard/recent-orders');
-      
-      // Şimdilik mock data
-      setStats({
-        totalProducts: 156,
-        totalOrders: 1234,
-        totalUsers: 892,
-        totalRevenue: 125650.50,
-        pendingOrders: 23,
-        lowStockProducts: 8,
-        todayOrders: 12,
-        todayRevenue: 4580.00,
-      });
-
-      setRecentOrders([
-        {
-          id: 1,
-          orderNumber: 'ORD-2024-001',
-          customerName: 'Ahmet Yılmaz',
-          totalAmount: 299.90,
-          status: 'Pending',
-          orderDate: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          orderNumber: 'ORD-2024-002',
-          customerName: 'Ayşe Demir',
-          totalAmount: 450.00,
-          status: 'Processing',
-          orderDate: new Date().toISOString(),
-        },
-        {
-          id: 3,
-          orderNumber: 'ORD-2024-003',
-          customerName: 'Mehmet Kaya',
-          totalAmount: 189.99,
-          status: 'Shipped',
-          orderDate: new Date().toISOString(),
-        },
-      ]);
+      const response = await api.get('/admin/check-admin');
+      console.log('Admin status:', response.data);
     } catch (error) {
+      console.error('Admin check failed:', error);
+    }
+  };
+
+  const fetchDashboardData = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      // Paralel olarak hem stats hem de recent orders'ı çek
+      const [statsResponse, ordersResponse] = await Promise.all([
+        api.get<DashboardStats>('/admin/dashboard/stats'),
+        api.get<RecentOrder[]>('/admin/dashboard/recent-orders')
+      ]);
+
+      setStats(statsResponse.data);
+      setRecentOrders(ordersResponse.data);
+    } catch (error: any) {
       console.error('Error fetching dashboard data:', error);
+      setError(error.response?.data?.message || 'Dashboard verileri yüklenirken hata oluştu');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    fetchDashboardData(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -110,6 +108,7 @@ const AdminDashboard: React.FC = () => {
       Shipped: { color: 'bg-purple-100 text-purple-800', text: 'Kargoda' },
       Delivered: { color: 'bg-green-100 text-green-800', text: 'Teslim Edildi' },
       Cancelled: { color: 'bg-red-100 text-red-800', text: 'İptal' },
+      Refunded: { color: 'bg-gray-100 text-gray-800', text: 'İade' },
     };
 
     const statusInfo = statusMap[status] || { color: 'bg-gray-100 text-gray-800', text: status };
@@ -121,7 +120,24 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  if (loading) {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY'
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading && !refreshing) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
@@ -129,8 +145,37 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <FiAlertCircle className="mx-auto text-red-500 mb-3" size={48} />
+        <h3 className="text-lg font-semibold text-red-800 mb-2">Hata Oluştu</h3>
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={() => fetchDashboardData()}
+          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+        >
+          Tekrar Dene
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
+      {/* Header with Refresh Button */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+        >
+          <FiRefreshCw className={`${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Güncelleniyor...' : 'Yenile'}
+        </button>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Total Products */}
@@ -138,15 +183,13 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Toplam Ürün</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalProducts}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {stats.lowStockProducts > 0 && (
-                  <span className="text-orange-600">
-                    <FiAlertCircle className="inline mr-1" />
-                    {stats.lowStockProducts} düşük stok
-                  </span>
-                )}
-              </p>
+              <p className="text-2xl font-bold text-gray-800">{stats.totalProducts.toLocaleString('tr-TR')}</p>
+              {stats.lowStockProducts > 0 && (
+                <p className="text-xs text-orange-600 mt-1 flex items-center">
+                  <FiAlertCircle className="mr-1" size={12} />
+                  {stats.lowStockProducts} düşük stok
+                </p>
+              )}
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
               <FiPackage className="text-purple-600" size={24} />
@@ -159,7 +202,7 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Toplam Sipariş</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalOrders}</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.totalOrders.toLocaleString('tr-TR')}</p>
               <p className="text-xs text-gray-500 mt-1">
                 <span className="text-yellow-600">
                   {stats.pendingOrders} beklemede
@@ -177,10 +220,10 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Toplam Kullanıcı</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalUsers}</p>
-              <p className="text-xs text-green-600 mt-1">
-                <FiTrendingUp className="inline mr-1" />
-                %12 artış
+              <p className="text-2xl font-bold text-gray-800">{stats.totalUsers.toLocaleString('tr-TR')}</p>
+              <p className="text-xs text-green-600 mt-1 flex items-center">
+                <FiTrendingUp className="mr-1" size={12} />
+                Aktif kullanıcılar
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -194,9 +237,9 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Toplam Gelir</p>
-              <p className="text-2xl font-bold text-gray-800">₺{stats.totalRevenue.toLocaleString('tr-TR')}</p>
+              <p className="text-2xl font-bold text-gray-800">{formatCurrency(stats.totalRevenue)}</p>
               <p className="text-xs text-gray-500 mt-1">
-                Bugün: ₺{stats.todayRevenue.toLocaleString('tr-TR')}
+                Bugün: {formatCurrency(stats.todayRevenue)}
               </p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -222,70 +265,92 @@ const AdminDashboard: React.FC = () => {
               </Link>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sipariş No
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Müşteri
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tutar
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Durum
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tarih
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {order.orderNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {order.customerName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₺{order.totalAmount.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(order.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <FiClock className="inline mr-1" />
-                      {new Date(order.orderDate).toLocaleDateString('tr-TR')}
-                    </td>
+          
+          {recentOrders.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              <FiShoppingBag className="mx-auto mb-3" size={48} />
+              <p>Henüz sipariş bulunmuyor</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Sipariş No
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Müşteri
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tutar
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Durum
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tarih
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {recentOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <Link 
+                          to={`/admin/orders/${order.id}`}
+                          className="text-purple-600 hover:text-purple-700"
+                        >
+                          {order.orderNumber}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div>
+                          <div className="font-medium">{order.customerName}</div>
+                          <div className="text-xs text-gray-400">{order.customerEmail}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {formatCurrency(order.totalAmount)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(order.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <FiClock className="mr-1" size={12} />
+                          {formatDate(order.orderDate)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
         <div className="space-y-6">
-          {/* Quick Stats */}
+          {/* Today's Summary */}
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Bugünün Özeti</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Yeni Siparişler</span>
-                <span className="font-semibold">{stats.todayOrders}</span>
+                <span className="font-semibold text-blue-600">{stats.todayOrders}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Günlük Gelir</span>
-                <span className="font-semibold">₺{stats.todayRevenue.toFixed(2)}</span>
+                <span className="font-semibold text-green-600">{formatCurrency(stats.todayRevenue)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Bekleyen Siparişler</span>
                 <span className="font-semibold text-yellow-600">{stats.pendingOrders}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Düşük Stok</span>
+                <span className="font-semibold text-orange-600">{stats.lowStockProducts}</span>
               </div>
             </div>
           </div>
@@ -301,20 +366,86 @@ const AdminDashboard: React.FC = () => {
                 <FiPackage className="mr-2" />
                 Yeni Ürün Ekle
               </Link>
+              
+              {stats.pendingOrders > 0 && (
+                <Link
+                  to="/admin/orders?status=pending"
+                  className="w-full bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 transition flex items-center justify-center"
+                >
+                  <FiClock className="mr-2" />
+                  Bekleyen Siparişler ({stats.pendingOrders})
+                </Link>
+              )}
+              
+              {stats.lowStockProducts > 0 && (
+                <Link
+                  to="/admin/products?stock=low"
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition flex items-center justify-center"
+                >
+                  <FiAlertCircle className="mr-2" />
+                  Düşük Stok ({stats.lowStockProducts})
+                </Link>
+              )}
+              
               <Link
-                to="/admin/orders?status=pending"
-                className="w-full bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 transition flex items-center justify-center"
+                to="/admin/users"
+                className="w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition flex items-center justify-center"
               >
-                <FiClock className="mr-2" />
-                Bekleyen Siparişler ({stats.pendingOrders})
+                <FiUsers className="mr-2" />
+                Kullanıcı Yönetimi
               </Link>
-              <Link
-                to="/admin/products?stock=low"
-                className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition flex items-center justify-center"
-              >
-                <FiAlertCircle className="mr-2" />
-                Düşük Stok ({stats.lowStockProducts})
-              </Link>
+            </div>
+          </div>
+
+          {/* Performance Indicators */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Performans</h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600">Sipariş Tamamlama</span>
+                  <span className="font-medium">
+                    {stats.totalOrders > 0 
+                      ? Math.round(((stats.totalOrders - stats.pendingOrders) / stats.totalOrders) * 100)
+                      : 0
+                    }%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${stats.totalOrders > 0 
+                        ? ((stats.totalOrders - stats.pendingOrders) / stats.totalOrders) * 100
+                        : 0
+                      }%` 
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600">Stok Durumu</span>
+                  <span className="font-medium">
+                    {stats.totalProducts > 0 
+                      ? Math.round(((stats.totalProducts - stats.lowStockProducts) / stats.totalProducts) * 100)
+                      : 0
+                    }%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${stats.totalProducts > 0 
+                        ? ((stats.totalProducts - stats.lowStockProducts) / stats.totalProducts) * 100
+                        : 0
+                      }%` 
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

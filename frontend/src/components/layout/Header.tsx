@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import * as Icons from 'react-icons/fi';
 import { RootState } from '../../store';
 import { logout } from '../../store/slices/authSlice';
 import { toggleCart } from '../../store/slices/cartSlice';
+import { isAdmin , debugAuth} from '../../utils/auth';
 
 const FiSearch = Icons.FiSearch as any;
 const FiUser = Icons.FiUser as any;
@@ -18,7 +19,9 @@ const Header: React.FC = () => {
   const dispatch = useDispatch();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
+  useEffect(() => {
+  debugAuth();
+}, []);
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const { cart } = useSelector((state: RootState) => state.cart);
   const wishlistItems = useSelector((state: RootState) => state.wishlist.items);  // <-- eklendi
@@ -91,6 +94,11 @@ const Header: React.FC = () => {
                     <Link to="/orders" className="block px-4 py-2 text-sm hover:bg-gray-100">
                       Siparişlerim
                     </Link>
+                      {isAdmin() && (
+      <Link to="/admin/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-100 text-blue-600">
+        Admin Paneli
+      </Link>
+    )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600"
@@ -106,6 +114,8 @@ const Header: React.FC = () => {
                     <Link to="/register" className="block px-4 py-2 text-sm hover:bg-gray-100">
                       Üye Ol
                     </Link>
+                    
+          
                   </>
                 )}
               </div>

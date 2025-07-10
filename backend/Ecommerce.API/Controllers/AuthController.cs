@@ -15,18 +15,20 @@ namespace ECommerce.API.Controllers
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly IConfiguration _configuration;
+        private readonly RoleManager<IdentityRole<int>> _roleManager;
 
         public AuthController(
             UserManager<User> userManager,
             SignInManager<User> signInManager,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            RoleManager<IdentityRole<int>> roleManager)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _configuration = configuration;
+            _roleManager = roleManager;
         }
 
-        // POST: api/auth/register
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterModel model)
         {
@@ -41,6 +43,7 @@ namespace ECommerce.API.Controllers
                 Email = model.Email,
                 FirstName = model.FirstName,
                 LastName = model.LastName,
+                IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -49,8 +52,30 @@ namespace ECommerce.API.Controllers
 
             if (result.Succeeded)
             {
+                try
+                {
+                    // User rolünü otomatik ata
+                    if (!await _roleManager.RoleExistsAsync("User"))
+                    {
+                        var roleResult = await _roleManager.CreateAsync(new IdentityRole<int> { Name = "User" });
+                        Console.WriteLine($"User role created: {roleResult.Succeeded}");
+                    }
+
+                    var addRoleResult = await _userManager.AddToRoleAsync(user, "User");
+                    Console.WriteLine($"Role added to user: {addRoleResult.Succeeded}");
+
+                    if (!addRoleResult.Succeeded)
+                    {
+                        Console.WriteLine($"Role add errors: {string.Join(", ", addRoleResult.Errors.Select(e => e.Description))}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Role assignment error: {ex.Message}");
+                }
+
                 // Generate JWT token
-                var token = GenerateJwtToken(user);
+                var token = await GenerateJwtToken(user);
 
                 return Ok(new
                 {
@@ -89,7 +114,7 @@ namespace ECommerce.API.Controllers
             if (result.Succeeded)
             {
                 // Generate JWT token
-                var token = GenerateJwtToken(user);
+                var token =await GenerateJwtToken(user);
 
                 return Ok(new
                 {
@@ -116,20 +141,26 @@ namespace ECommerce.API.Controllers
             return Ok(new { message = "Logout successful" });
         }
 
-        private string GenerateJwtToken(User user)
+        private async Task<string> GenerateJwtToken(User user)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("firstName", user.FirstName),
-                new Claim("lastName", user.LastName)
-            };
+            // Kullanýcýnýn rollerini çekiyoruz
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var claims = new List<Claim>
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+        new Claim(JwtRegisteredClaimNames.Email, user.Email),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new Claim("firstName", user.FirstName),
+        new Claim("lastName", user.LastName)
+    };
+
+            // Rol claim'lerini ekle
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var token = new JwtSecurityToken(
                 issuer: jwtSettings["Issuer"],
@@ -141,6 +172,7 @@ namespace ECommerce.API.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
     }
 
     // Models for Request

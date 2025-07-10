@@ -5,9 +5,12 @@ export interface User {
   firstName: string;
   lastName: string;
   phoneNumber?: string;
-  role?: string;
+  createdAt: string;
+  isActive: boolean;
+  orderCount: number;
+  totalSpent: number;
+  role:string[];
 }
-
 export interface LoginCredentials {
   email: string;
   password: string;

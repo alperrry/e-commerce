@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ECommerce.API.Data;
 using ECommerce.API.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ECommerce.API.Controllers
 {
@@ -43,7 +44,17 @@ namespace ECommerce.API.Controllers
 
             return category;
         }
-
+        // GET: api/categories/admin/all - TÜM kategoriler (aktif + pasif)
+        [HttpGet("admin/all")]  // "admin/categories/all" yerine "admin/all"
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<Category>>> GetAllCategoriesForAdmin()
+        {
+            return await _context.Categories
+                .Include(c => c.SubCategories)
+                .Include(c => c.Products)
+                .Where(c => c.ParentCategoryId == null) // Ana kategoriler
+                .ToListAsync(); // IsActive filtresi YOK
+        }
         // GET: api/categories/5/products
         [HttpGet("{id}/products")]
         public async Task<ActionResult<IEnumerable<Product>>> GetCategoryProducts(int id)

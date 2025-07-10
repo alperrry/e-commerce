@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +9,7 @@ namespace ECommerce.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")] // Tüm controller admin rolü gerektiriyor
     public class AdminController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -26,7 +26,69 @@ namespace ECommerce.API.Controllers
             _roleManager = roleManager;
         }
 
-        // GET: api/admin/dashboard
+        // GET: api/admin/dashboard/stats
+        [HttpGet("dashboard/stats")]
+        public async Task<ActionResult<object>> GetDashboardStats()
+        {
+            var totalUsers = await _context.Users.CountAsync();
+            var totalProducts = await _context.Products.CountAsync(p => p.IsActive);
+            var totalOrders = await _context.Orders.CountAsync();
+            var totalRevenue = await _context.Orders
+                .Where(o => o.Status != OrderStatus.Cancelled)
+                .SumAsync(o => o.TotalAmount);
+
+            var pendingOrders = await _context.Orders
+                .CountAsync(o => o.Status == OrderStatus.Pending);
+
+            var lowStockProducts = await _context.Products
+                .CountAsync(p => p.IsActive && p.StockQuantity < 10);
+
+            // Bugünün siparişleri
+            var today = DateTime.UtcNow.Date;
+            var todayOrders = await _context.Orders
+                .CountAsync(o => o.OrderDate >= today);
+
+            var todayRevenue = await _context.Orders
+                .Where(o => o.OrderDate >= today && o.Status != OrderStatus.Cancelled)
+                .SumAsync(o => o.TotalAmount);
+
+            return Ok(new
+            {
+                totalUsers,
+                totalProducts,
+                totalOrders,
+                totalRevenue,
+                pendingOrders,
+                lowStockProducts,
+                todayOrders,
+                todayRevenue
+            });
+        }
+
+        // GET: api/admin/dashboard/recent-orders
+        [HttpGet("dashboard/recent-orders")]
+        public async Task<ActionResult<object>> GetRecentOrders()
+        {
+            var recentOrders = await _context.Orders
+                .Include(o => o.User)
+                .OrderByDescending(o => o.OrderDate)
+                .Take(10)
+                .Select(o => new
+                {
+                    o.Id,
+                    o.OrderNumber,
+                    o.OrderDate,
+                    o.Status,
+                    o.TotalAmount,
+                    CustomerName = o.User!.FirstName + " " + o.User.LastName,
+                    CustomerEmail = o.User.Email
+                })
+                .ToListAsync();
+
+            return Ok(recentOrders);
+        }
+
+        // GET: api/admin/dashboard - Combined dashboard data
         [HttpGet("dashboard")]
         public async Task<ActionResult<object>> GetDashboard()
         {
@@ -84,6 +146,38 @@ namespace ECommerce.API.Controllers
                 lowStockProducts,
                 ordersByStatus
             });
+        }
+        // GET: api/admin/roles
+        [HttpGet("roles")]
+        public async Task<ActionResult<IEnumerable<string>>> GetRoles()
+        {
+            var roles = await _roleManager.Roles.Select(r => r.Name).ToListAsync();
+            return Ok(roles);
+        }
+
+        // GET: api/admin/users/5/roles  
+        [HttpGet("users/{id}/roles")]
+        public async Task<ActionResult<IEnumerable<string>>> GetUserRoles(int id)
+        {
+            var user = await _userManager.FindByIdAsync(id.ToString());
+            if (user == null) return NotFound();
+
+            var roles = await _userManager.GetRolesAsync(user);
+            return Ok(roles);
+        }
+
+        // PUT: api/admin/users/5/roles
+        [HttpPut("users/{id}/roles")]
+        public async Task<ActionResult> UpdateUserRoles(int id, [FromBody] UpdateUserRolesModel model)
+        {
+            var user = await _userManager.FindByIdAsync(id.ToString());
+            if (user == null) return NotFound();
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            await _userManager.RemoveFromRolesAsync(user, currentRoles);
+            await _userManager.AddToRolesAsync(user, model.Roles);
+
+            return Ok(new { message = "User roles updated successfully" });
         }
 
         // GET: api/admin/orders
@@ -184,11 +278,13 @@ namespace ECommerce.API.Controllers
             [FromQuery] int pageSize = 20,
             [FromQuery] string? search = null)
         {
-            var query = _context.Users.AsQueryable();
+            var query = _context.Users
+                .Include(u => u.Orders)
+                .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(search))
             {
-                query = query.Where(u => 
+                query = query.Where(u =>
                     u.Email.Contains(search) ||
                     u.FirstName.Contains(search) ||
                     u.LastName.Contains(search));
@@ -197,23 +293,30 @@ namespace ECommerce.API.Controllers
             var totalItems = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
-            var users = await query
+            var usersFromDb = await query
                 .OrderByDescending(u => u.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(u => new
-                {
-                    u.Id,
-                    u.Email,
-                    u.FirstName,
-                    u.LastName,
-                    u.PhoneNumber,
-                    u.CreatedAt,
-                    u.IsActive,
-                    OrderCount = u.Orders!.Count,
-                    TotalSpent = u.Orders!.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.TotalAmount)
-                })
                 .ToListAsync();
+
+            var users = new List<object>();
+            foreach (var user in usersFromDb)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                users.Add(new
+                {
+                    user.Id,
+                    user.Email,
+                    user.FirstName,
+                    user.LastName,
+                    user.PhoneNumber,
+                    user.CreatedAt,
+                    user.IsActive,
+                    OrderCount = user.Orders?.Count ?? 0,
+                    TotalSpent = user.Orders?.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.TotalAmount) ?? 0,
+                    Roles = roles.ToList()
+                });
+            }
 
             return Ok(new
             {
@@ -227,7 +330,6 @@ namespace ECommerce.API.Controllers
                 }
             });
         }
-
         // PUT: api/admin/users/5/activate
         [HttpPut("users/{id}/activate")]
         public async Task<ActionResult> ActivateUser(int id)
@@ -373,10 +475,15 @@ namespace ECommerce.API.Controllers
         [HttpPost("seed-admin")]
         public async Task<ActionResult> SeedAdmin()
         {
-            // Check if admin role exists
-            if (!await _roleManager.RoleExistsAsync("Admin"))
+            // Create all roles if they don't exist
+            var roles = new[] { "Admin", "Seller", "User" };
+
+            foreach (var roleName in roles)
             {
-                await _roleManager.CreateAsync(new IdentityRole<int> { Name = "Admin" });
+                if (!await _roleManager.RoleExistsAsync(roleName))
+                {
+                    await _roleManager.CreateAsync(new IdentityRole<int> { Name = roleName });
+                }
             }
 
             // Check if admin user exists
@@ -392,6 +499,7 @@ namespace ECommerce.API.Controllers
                     FirstName = "Admin",
                     LastName = "User",
                     EmailConfirmed = true,
+                    IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -401,20 +509,50 @@ namespace ECommerce.API.Controllers
                 if (result.Succeeded)
                 {
                     await _userManager.AddToRoleAsync(adminUser, "Admin");
-                    return Ok(new { message = "Admin user created successfully" });
+                    return Ok(new { message = "Admin user and all roles created successfully" });
                 }
 
-                return BadRequest(new { errors = result.Errors });
+                return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
             }
 
-            return Ok(new { message = "Admin user already exists" });
+            // Eğer admin kullanıcısı varsa admin rolünü kontrol et
+            var isAdmin = await _userManager.IsInRoleAsync(adminUser, "Admin");
+            if (!isAdmin)
+            {
+                await _userManager.AddToRoleAsync(adminUser, "Admin");
+            }
+
+            return Ok(new { message = "All roles exist, admin user ready" });
+        }
+
+        // GET: api/admin/check-admin - Debug için
+        [HttpGet("check-admin")]
+        public async Task<ActionResult<object>> CheckAdminStatus()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+
+            return Ok(new
+            {
+                userId,
+                userEmail,
+                roles,
+                isAuthenticated = User.Identity?.IsAuthenticated ?? false,
+                authType = User.Identity?.AuthenticationType
+            });
         }
     }
 
-    // Request Models
+    // Request Models (AdminController.cs'nin en sonuna ekleyin)
     public class UpdateOrderStatusModel
     {
         public OrderStatus Status { get; set; }
         public string? TrackingNumber { get; set; }
+    }
+
+    public class UpdateUserRolesModel
+    {
+        public List<string> Roles { get; set; } = new List<string>();
     }
 }
