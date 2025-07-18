@@ -34,6 +34,13 @@ const ProductDetail: React.FC = () => {
 
   const isInWishlist = product ? wishlistItems.some(item => item.id === product.id) : false;
 
+  // Resim URL'ini düzgün formatla
+  const getImageUrl = (imageUrl?: string) => {
+    if (!imageUrl) return 'https://placehold.co/600x600?text=No+Image';
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return `http://localhost:5288${imageUrl}`;
+  };
+
   useEffect(() => {
     fetchProduct();
   }, [id]);
@@ -104,9 +111,19 @@ const ProductDetail: React.FC = () => {
   }
 
   const discountPercentage = calculateDiscountPercentage();
+  
+  // Resim listesini hazırla - URL'leri düzgün formatla
   const images = product.images && product.images.length > 0 
-    ? product.images 
-    : [{ imageUrl: 'https://placehold.co/600x600?text=No+Image', altText: product.name }];
+    ? product.images.map(img => ({
+        ...img,
+        imageUrl: getImageUrl(img.imageUrl)
+      }))
+    : [{ 
+        imageUrl: 'https://placehold.co/600x600?text=No+Image', 
+        altText: product.name,
+        isMainImage: true,
+        displayOrder: 0
+      }];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -125,11 +142,16 @@ const ProductDetail: React.FC = () => {
         {/* Product Images */}
         <div className="space-y-4">
           {/* Main Image */}
-          <div className="relative bg-white rounded-lg overflow-hidden">
+          <div className="relative bg-white rounded-lg overflow-hidden border">
             <img
               src={images[selectedImage].imageUrl}
               alt={images[selectedImage].altText || product.name}
               className="w-full h-[600px] object-contain"
+              onError={(e) => {
+                console.log('❌ ProductDetail main image error:', images[selectedImage].imageUrl);
+                // Hata durumunda placeholder göster
+                (e.target as HTMLImageElement).src = 'https://placehold.co/600x600?text=No+Image';
+              }}
             />
             
             {discountPercentage > 0 && (
@@ -155,11 +177,18 @@ const ProductDetail: React.FC = () => {
                 </button>
               </>
             )}
+
+            {/* Image Counter */}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                {selectedImage + 1} / {images.length}
+              </div>
+            )}
           </div>
 
           {/* Thumbnail Images */}
           {images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex gap-2 overflow-x-auto pb-2">
               {images.map((image, index) => (
                 <button
                   key={index}
@@ -172,6 +201,11 @@ const ProductDetail: React.FC = () => {
                     src={image.imageUrl}
                     alt={image.altText || `${product.name} ${index + 1}`}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.log('❌ ProductDetail thumbnail error:', image.imageUrl);
+                      // Hata durumunda placeholder göster
+                      (e.target as HTMLImageElement).src = 'https://placehold.co/80x80?text=No+Image';
+                    }}
                   />
                 </button>
               ))}

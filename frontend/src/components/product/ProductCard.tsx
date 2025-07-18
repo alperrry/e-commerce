@@ -39,15 +39,27 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const discountPercentage = calculateDiscountPercentage();
   const mainImage = product.images?.find(img => img.isMainImage) || product.images?.[0];
 
+  // Resim URL'ini düzgün formatla
+  const getImageUrl = (imageUrl?: string) => {
+    if (!imageUrl) return 'https://placehold.co/300x300?text=No+Image';
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return `http://localhost:5288${imageUrl}`;
+  };
+
   return (
     <Link to={`/products/${product.id}`} className="group">
       <div className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
         <div className="relative overflow-hidden h-64">
           {/* Product Image */}
           <img
-            src={mainImage?.imageUrl || 'https://placehold.co/300x300?text=No+Image'}
+            src={getImageUrl(mainImage?.imageUrl)}
             alt={mainImage?.altText || product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              console.log('❌ ProductCard image error:', mainImage?.imageUrl);
+              // Hata durumunda placeholder göster
+              (e.target as HTMLImageElement).src = 'https://placehold.co/300x300?text=No+Image';
+            }}
           />
           
           {/* Badges */}

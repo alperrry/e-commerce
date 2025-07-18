@@ -29,6 +29,13 @@ const CartDrawer: React.FC = () => {
     dispatch(removeFromCart(cartItemId));
   };
 
+  // Resim URL'ini düzgün formatla
+  const getImageUrl = (imageUrl?: string) => {
+    if (!imageUrl) return 'https://placehold.co/80x80?text=No+Image';
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return `http://localhost:5288${imageUrl}`;
+  };
+
   const subtotal = cart?.cartItems?.reduce((total, item) => total + (item.price * item.quantity), 0) || 0;
   const shipping = subtotal > 0 ? (subtotal > 150 ? 0 : 15) : 0;
   const total = subtotal + shipping;
@@ -76,79 +83,89 @@ const CartDrawer: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {cart.cartItems.map((item) => (
-                  <div key={item.id} className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex space-x-4">
-                      {/* Product Image */}
-                      <Link
-                        to={`/products/${item.productId}`}
-                        onClick={handleClose}
-                        className="flex-shrink-0"
-                      >
-                        <img
-                          src={item.product?.images?.[0]?.imageUrl || 'https://placehold.co/80x80?text=No+Image'}
-                          alt={item.product?.name}
-                          className="w-20 h-20 object-cover rounded-lg"
-                        />
-                      </Link>
-
-                      {/* Product Details */}
-                      <div className="flex-1">
+                {cart.cartItems.map((item) => {
+                  // Ana resmi bul
+                  const mainImage = item.product?.images?.find(img => img.isMainImage) || item.product?.images?.[0];
+                  
+                  return (
+                    <div key={item.id} className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex space-x-4">
+                        {/* Product Image */}
                         <Link
                           to={`/products/${item.productId}`}
                           onClick={handleClose}
-                          className="font-medium text-gray-800 hover:text-purple-600 line-clamp-2"
+                          className="flex-shrink-0"
                         >
-                          {item.product?.name}
+                          <img
+                            src={getImageUrl(mainImage?.imageUrl)}
+                            alt={item.product?.name}
+                            className="w-20 h-20 object-cover rounded-lg"
+                            onError={(e) => {
+                              console.log('❌ CartDrawer image error:', mainImage?.imageUrl);
+                              // Hata durumunda placeholder göster
+                              (e.target as HTMLImageElement).src = 'https://placehold.co/80x80?text=No+Image';
+                            }}
+                          />
                         </Link>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {item.product?.brand}
-                        </p>
 
-                        {/* Quantity and Price */}
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                              disabled={isLoading || item.quantity <= 1}
-                              className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <FiMinus size={16} />
-                            </button>
-                            <span className="w-8 text-center font-medium">{item.quantity}</span>
-                            <button
-                              onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                              disabled={isLoading || (item.product?.stockQuantity || 0) <= item.quantity}
-                              className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <FiPlus size={16} />
-                            </button>
-                          </div>
-
-                          <div className="flex items-center space-x-3">
-                            <span className="font-bold text-lg">
-                              ₺{(item.price * item.quantity).toFixed(2)}
-                            </span>
-                            <button
-                              onClick={() => handleRemoveItem(item.id)}
-                              disabled={isLoading}
-                              className="text-red-500 hover:text-red-600 p-1"
-                            >
-                              <FiTrash2 size={18} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Stock Warning */}
-                        {item.product && item.product.stockQuantity <= 5 && (
-                          <p className="text-xs text-orange-600 mt-2">
-                            Stokta {item.product.stockQuantity} adet kaldı!
+                        {/* Product Details */}
+                        <div className="flex-1">
+                          <Link
+                            to={`/products/${item.productId}`}
+                            onClick={handleClose}
+                            className="font-medium text-gray-800 hover:text-purple-600 line-clamp-2"
+                          >
+                            {item.product?.name}
+                          </Link>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {item.product?.brand}
                           </p>
-                        )}
+
+                          {/* Quantity and Price */}
+                          <div className="flex items-center justify-between mt-3">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                                disabled={isLoading || item.quantity <= 1}
+                                className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <FiMinus size={16} />
+                              </button>
+                              <span className="w-8 text-center font-medium">{item.quantity}</span>
+                              <button
+                                onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                disabled={isLoading || (item.product?.stockQuantity || 0) <= item.quantity}
+                                className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <FiPlus size={16} />
+                              </button>
+                            </div>
+
+                            <div className="flex items-center space-x-3">
+                              <span className="font-bold text-lg">
+                                ₺{(item.price * item.quantity).toFixed(2)}
+                              </span>
+                              <button
+                                onClick={() => handleRemoveItem(item.id)}
+                                disabled={isLoading}
+                                className="text-red-500 hover:text-red-600 p-1"
+                              >
+                                <FiTrash2 size={18} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Stock Warning */}
+                          {item.product && item.product.stockQuantity <= 5 && (
+                            <p className="text-xs text-orange-600 mt-2">
+                              Stokta {item.product.stockQuantity} adet kaldı!
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

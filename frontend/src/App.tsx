@@ -23,7 +23,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProductManagement from './pages/admin/ProductManagement';
 import UserManagement from './pages/admin/UserManagement';
-
+import OrderManagement from './pages/admin/OrderManagement';
 function App() {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -59,6 +59,7 @@ function App() {
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="products" element={<ProductManagement />} />
               <Route path="users" element={<UserManagement />} />
+              <Route path="orders" element={<OrderManagement />} />
               {/* Diğer admin sayfaları buraya eklenecek */}
             </Route>
           </Route>

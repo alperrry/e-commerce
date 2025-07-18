@@ -152,3 +152,4 @@ C:\Projects\ecommerce-site\backend\ECommerce.API\obj\Debug\net8.0\Ecommerce.API.
 C:\Projects\ecommerce-site\backend\ECommerce.API\obj\Debug\net8.0\Ecommerce.API.genruntimeconfig.cache
 C:\Projects\ecommerce-site\backend\ECommerce.API\obj\Debug\net8.0\ref\Ecommerce.API.dll
 C:\Projects\ecommerce-site\backend\Ecommerce.API\obj\Debug\net8.0\Ecommerce.API.sourcelink.json
+C:\Projects\ecommerce-site\backend\Ecommerce.API\bin\Debug\net8.0\Ecommerce.API.staticwebassets.runtime.json

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from 'react-icons/fi';
 import api from '../../services/api';
 import { Product, ProductImage, Category, PaginatedResponse } from '../../types';
@@ -18,6 +18,8 @@ const FiChevronLeft = Icons.FiChevronLeft as any;
 const FiChevronRight = Icons.FiChevronRight as any;
 const FiEye = Icons.FiEye as any;
 const FiDollarSign = Icons.FiDollarSign as any;
+const FiUpload = Icons.FiUpload as any;
+const FiCheck = Icons.FiCheck as any;
 
 interface ProductFormData {
   name: string;
@@ -46,6 +48,14 @@ const ProductManagement: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Image Modal States - Eksik olan state'ler eklendi
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [imageProduct, setImageProduct] = useState<Product | null>(null);
+  const [newImageAlt, setNewImageAlt] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -127,6 +137,18 @@ const ProductManagement: React.FC = () => {
       setProducts(filteredProducts);
       setTotalPages(response.data.pagination.totalPages);
       setTotalItems(response.data.pagination.totalItems);
+      
+      // **YENİ: Debug için ekle**
+      console.log('🔍 Fetched products:', filteredProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        imageCount: p.images?.length || 0,
+        images: p.images?.map(img => ({
+          id: img.id,
+          url: img.imageUrl,
+          isMain: img.isMainImage
+        }))
+      })));
     } catch (error: any) {
       console.error('Error fetching products:', error);
       setError(error.response?.data?.message || 'Ürünler yüklenirken hata oluştu');
@@ -280,6 +302,213 @@ const ProductManagement: React.FC = () => {
     } catch (error: any) {
       console.error('Error deleting product:', error);
       setError(error.response?.data?.message || 'Ürün silinirken hata oluştu');
+    }
+  };
+
+  // Image Management Functions
+  const openImageModal = (product: Product) => {
+    setImageProduct(product);
+    setNewImageAlt('');
+    setIsImageModalOpen(true);
+  };
+
+  const closeImageModal = () => {
+    setImageProduct(null);
+    setNewImageAlt('');
+    setIsImageModalOpen(false);
+    setDragActive(false);
+  };
+
+  const handleFileUpload = async (files: FileList | File[]) => {
+    if (!imageProduct || files.length === 0) return;
+
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      
+      // Dosya tipini ve boyutunu kontrol et
+      const validFiles = Array.from(files).filter(file => {
+        // Dosya tipi kontrolü
+        if (!file.type.startsWith('image/')) {
+          console.warn(`Geçersiz dosya tipi: ${file.name}`);
+          return false;
+        }
+        
+        // Dosya boyutu kontrolü (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          console.warn(`Dosya çok büyük: ${file.name}`);
+          setError(`${file.name} dosyası çok büyük. Maksimum 5MB olmalıdır.`);
+          return false;
+        }
+        
+        return true;
+      });
+
+      if (validFiles.length === 0) {
+        setError('Geçerli resim dosyası seçilmedi.');
+        setUploadingFile(false);
+        return;
+      }
+
+      // Geçerli dosyaları FormData'ya ekle
+      validFiles.forEach((file) => {
+        formData.append('images', file);
+      });
+      
+      formData.append('productId', imageProduct.id.toString());
+      if (newImageAlt.trim()) {
+        formData.append('altText', newImageAlt.trim());
+      }
+
+      console.log('Dosyalar yükleniyor:', validFiles.map(f => f.name));
+
+      // Upload endpoint'ini kullan
+      const response = await api.post(`/products/${imageProduct.id}/images/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('✅ Upload başarılı:', response.data);
+
+      // Refresh products to get updated images
+      await fetchProducts();
+      
+      // **YENİ: imageProduct state'ini güncelle**
+      if (imageProduct) {
+        // Güncel ürün bilgisini bul ve imageProduct'ı güncelle
+        const updatedProducts = await api.get<PaginatedResponse<Product>>(`/products?page=${currentPage}&pageSize=${pageSize}`);
+        const updatedProduct = updatedProducts.data.products.find(p => p.id === imageProduct.id);
+        if (updatedProduct) {
+          setImageProduct(updatedProduct);
+          console.log('🔄 ImageProduct güncellendi:', {
+            id: updatedProduct.id,
+            imageCount: updatedProduct.images?.length || 0,
+            images: updatedProduct.images
+          });
+        }
+      }
+      
+      // Reset alt text
+      setNewImageAlt('');
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+    } catch (error: any) {
+      console.error('Error uploading images:', error);
+      
+      // Daha detaylı hata mesajları
+      if (error.response?.status === 413) {
+        setError('Dosya çok büyük. Maksimum 5MB dosya yükleyebilirsiniz.');
+      } else if (error.response?.status === 415) {
+        setError('Desteklenmeyen dosya formatı. Sadece JPG, PNG, WebP dosyaları yükleyebilirsiniz.');
+      } else if (error.response?.status === 404) {
+        setError('Resim yükleme endpoint\'i bulunamadı. Backend API\'sini kontrol edin.');
+      } else {
+        setError(error.response?.data?.message || 'Resim yüklenirken hata oluştu. Lütfen tekrar deneyin.');
+      }
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const imageFiles = Array.from(files).filter(file => 
+        file.type.startsWith('image/')
+      );
+      if (imageFiles.length > 0) {
+        handleFileUpload(imageFiles);
+      }
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File input changed:', e.target.files);
+    if (e.target.files && e.target.files.length > 0) {
+      console.log('Selected files:', Array.from(e.target.files).map(f => ({
+        name: f.name,
+        size: f.size,
+        type: f.type
+      })));
+      handleFileUpload(e.target.files);
+    }
+  };
+
+  const handleDeleteImage = async (imageId: number) => {
+    if (!window.confirm('Bu resmi silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+
+    try {
+      // Eğer ImagesController kullanıyorsanız:
+      await api.delete(`/images/${imageId}`);
+      
+      // Eğer ProductsController kullanıyorsanız:
+      // await api.delete(`/products/images/${imageId}`);
+      
+      await fetchProducts();
+      
+      // **YENİ: imageProduct state'ini güncelle**
+      if (imageProduct) {
+        const updatedProducts = await api.get<PaginatedResponse<Product>>(`/products?page=${currentPage}&pageSize=${pageSize}`);
+        const updatedProduct = updatedProducts.data.products.find(p => p.id === imageProduct.id);
+        if (updatedProduct) {
+          setImageProduct(updatedProduct);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error deleting image:', error);
+      setError(error.response?.data?.message || 'Resim silinirken hata oluştu');
+    }
+  };
+
+  const handleSetMainImage = async (productId: number, imageId: number) => {
+    try {
+      // Eğer ImagesController kullanıyorsanız:
+      await api.put(`/images/${imageId}/main`);
+      
+      // Eğer ProductsController kullanıyorsanız:
+      // await api.put(`/products/images/${imageId}/main`);
+      
+      await fetchProducts();
+      
+      // **YENİ: imageProduct state'ini güncelle**
+      if (imageProduct) {
+        const updatedProducts = await api.get<PaginatedResponse<Product>>(`/products?page=${currentPage}&pageSize=${pageSize}`);
+        const updatedProduct = updatedProducts.data.products.find(p => p.id === imageProduct.id);
+        if (updatedProduct) {
+          setImageProduct(updatedProduct);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error setting main image:', error);
+      setError(error.response?.data?.message || 'Ana resim ayarlanırken hata oluştu');
     }
   };
 
@@ -491,7 +720,7 @@ const ProductManagement: React.FC = () => {
                             <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center mr-4">
                               {mainImage ? (
                                 <img 
-                                  src={mainImage} 
+                                  src={`http://localhost:5288${mainImage}`} 
                                   alt={product.name}
                                   className="w-full h-full object-cover rounded-lg"
                                 />
@@ -547,6 +776,13 @@ const ProductManagement: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
+                            <button
+                              onClick={() => openImageModal(product)}
+                              className="text-green-600 hover:text-green-700 p-1 hover:bg-green-50 rounded"
+                              title="Resim Yönetimi"
+                            >
+                              <FiImage size={16} />
+                            </button>
                             <button
                               onClick={() => openModal(product)}
                               className="text-purple-600 hover:text-purple-700 p-1 hover:bg-purple-50 rounded"
@@ -618,7 +854,7 @@ const ProductManagement: React.FC = () => {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Product Form Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -854,6 +1090,184 @@ const ProductManagement: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Image Management Modal */}
+      {isImageModalOpen && imageProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-semibold text-gray-800">
+                {imageProduct.name} - Resim Yönetimi
+              </h3>
+              <button
+                onClick={closeImageModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* Current Images */}
+              <div className="mb-8">
+                <h4 className="text-md font-medium text-gray-800 mb-4">Mevcut Resimler</h4>
+                
+                {imageProduct.images && imageProduct.images.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {imageProduct.images.map((image) => {
+                      // DEBUG: Console'a yaz
+                      console.log('🖼️ Rendering image:', image);
+                      console.log('🖼️ Image URL:', image.imageUrl);
+                      console.log('🖼️ Full URL:', `http://localhost:5288${image.imageUrl}`);
+                      
+                      return (
+                        <div key={image.id} className="relative group">
+                          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={`http://localhost:5288${image.imageUrl}`}
+                              alt={image.altText}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          
+                          {/* Image Actions */}
+                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {!image.isMainImage && (
+                              <button
+                                onClick={() => handleSetMainImage(imageProduct.id, image.id)}
+                                className="bg-green-600 text-white p-1 rounded-full text-xs hover:bg-green-700"
+                                title="Ana resim yap"
+                              >
+                                <FiStar size={12} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteImage(image.id)}
+                              className="bg-red-600 text-white p-1 rounded-full text-xs hover:bg-red-700"
+                              title="Sil"
+                            >
+                              <FiTrash2 size={12} />
+                            </button>
+                          </div>
+
+                          {/* Main Image Badge */}
+                          {image.isMainImage && (
+                            <div className="absolute top-2 left-2">
+                              <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                <FiStar size={10} />
+                                Ana Resim
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Image Info */}
+                          <div className="mt-2 text-xs text-gray-600">
+                            <p className="truncate">{image.altText}</p>
+                            <p>Sıra: {image.displayOrder}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <FiImage size={48} className="mx-auto mb-2" />
+                    <p>Henüz resim yüklenmemiş</p>
+                  </div>
+                )}
+              </div>
+
+                              {/* Add New Images */}
+              <div className="space-y-6 border-t pt-6">
+                <h4 className="text-md font-medium text-gray-800 mb-4">Yeni Resim Ekle</h4>
+
+                {/* Alt Text Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Resim Açıklaması (İsteğe bağlı)
+                  </label>
+                  <input
+                    type="text"
+                    value={newImageAlt}
+                    onChange={(e) => setNewImageAlt(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder={`${imageProduct.name} resmi`}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Boş bırakılırsa ürün adı kullanılacak
+                  </p>
+                </div>
+
+                {/* File Upload Area */}
+                <div>
+                  {/* Drag & Drop Area */}
+                  <div
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+                      dragActive
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-300 hover:border-purple-400'
+                    } ${uploadingFile ? 'pointer-events-none opacity-50' : ''}`}
+                  >
+                    <FiUpload className="mx-auto mb-4 text-gray-400" size={64} />
+                    <p className="text-xl font-medium text-gray-700 mb-2">
+                      Resim dosyalarını buraya sürükleyin
+                    </p>
+                    <p className="text-sm text-gray-500 mb-6">
+                      veya bilgisayarınızdan seçmek için aşağıdaki butonu kullanın
+                    </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handleFileInputChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingFile}
+                      className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2 mx-auto text-lg"
+                    >
+                      {uploadingFile ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          Yükleniyor...
+                        </>
+                      ) : (
+                        <>
+                          <FiUpload size={20} />
+                          Resim Dosyalarını Seç
+                        </>
+                      )}
+                    </button>
+                    <div className="mt-4 text-xs text-gray-500 space-y-1">
+                      <p><strong>Desteklenen formatlar:</strong> JPG, PNG, WebP</p>
+                      <p><strong>Maksimum dosya boyutu:</strong> 5MB per dosya</p>
+                      <p><strong>Çoklu seçim:</strong> Birden fazla resim birden seçebilirsiniz</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3 pt-6 border-t mt-6">
+                <button
+                  type="button"
+                  onClick={closeImageModal}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                >
+                  Kapat
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

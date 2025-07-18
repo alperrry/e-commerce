@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using ECommerce.API.Models;
 using ECommerce.API.Services.Interfaces;
 
@@ -164,6 +164,77 @@ namespace ECommerce.API.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "An error occurred while deleting the product", error = ex.Message });
+            }
+        }
+        // POST: api/products/5/images/upload
+        [HttpPost("{id}/images/upload")]
+        public async Task<ActionResult<List<ProductImage>>> UploadProductImages(int id, [FromForm] IFormFileCollection images, [FromForm] string? altText = null)
+        {
+            try
+            {
+                var uploadedImages = new List<ProductImage>();
+
+                // Ürünün var olduğunu kontrol et
+                var product = await _productService.GetProductByIdAsync(id);
+                if (product == null)
+                {
+                    return NotFound(new { message = "Product not found" });
+                }
+
+                foreach (var image in images)
+                {
+                    // Dosya validasyonu
+                    if (image.Length == 0)
+                        continue;
+
+                    if (image.Length > 5 * 1024 * 1024) // 5MB limit
+                        return BadRequest(new { message = $"File {image.FileName} is too large. Maximum size is 5MB." });
+
+                    if (!image.ContentType.StartsWith("image/"))
+                        return BadRequest(new { message = $"File {image.FileName} is not a valid image." });
+
+                    // Dosyayı kaydet
+                    var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "products");
+                    Directory.CreateDirectory(uploadsFolder);
+
+                    var fileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await image.CopyToAsync(stream);
+                    }
+
+                    // Veritabanına kaydet
+                    var productImage = new ProductImage
+                    {
+                        ProductId = id,
+                        ImageUrl = $"/images/products/{fileName}",
+                        AltText = altText ?? $"{product.Name} image",
+                        IsMainImage = product.Images?.Count == 0, // İlk resim ana resim
+                        DisplayOrder = product.Images?.Count ?? 0
+                    };
+
+                    var createdImage = await _productService.AddProductImageAsync(id, productImage);
+                    uploadedImages.Add(createdImage);
+                }
+                // Upload başarılı olduktan sonra ekle:
+                Console.WriteLine($"✅ Upload tamamlandı. Product ID: {id}");
+                Console.WriteLine($"✅ Yüklenen resim sayısı: {uploadedImages.Count}");
+
+                foreach (var img in uploadedImages)
+                {
+                    Console.WriteLine($"✅ Resim: ID={img.Id}, URL={img.ImageUrl}, IsMain={img.IsMainImage}");
+                }
+                return Ok(uploadedImages);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while uploading images", error = ex.Message });
             }
         }
 

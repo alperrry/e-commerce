@@ -190,3 +190,28 @@ export interface ProductFilters {
   maxPrice?: number;
   sortBy?: 'name' | 'price' | 'price_desc' | 'newest' | 'popular';
 }
+
+export interface AdminOrdersResponse {
+  orders: AdminOrder[];
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminOrder {
+  id: number;
+  orderNumber: string;
+  orderDate: string;
+  status: OrderStatus;
+  totalAmount: number;
+  paymentMethod: string;
+  itemCount: number;
+  customer: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}

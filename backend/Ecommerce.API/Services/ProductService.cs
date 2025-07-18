@@ -331,42 +331,7 @@ namespace ECommerce.API.Services
             }
         }
 
-        public async Task<bool> SetMainImageAsync(int productId, int imageId)
-        {
-            try
-            {
-                var images = await _context.ProductImages
-                    .Where(pi => pi.ProductId == productId)
-                    .ToListAsync();
-
-                var targetImage = images.FirstOrDefault(pi => pi.Id == imageId);
-                if (targetImage == null)
-                {
-                    return false;
-                }
-
-                // Remove main flag from all images
-                foreach (var img in images)
-                {
-                    img.IsMainImage = false;
-                }
-
-                // Set main flag for target image
-                targetImage.IsMainImage = true;
-                targetImage.UpdatedAt = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Main image set for product ID: {ProductId}, Image ID: {ImageId}", 
-                    productId, imageId);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error setting main image for product ID: {ProductId}", productId);
-                throw;
-            }
-        }
+       
 
         public async Task<bool> IncrementViewCountAsync(int productId)
         {
@@ -387,6 +352,60 @@ namespace ECommerce.API.Services
             {
                 _logger.LogError(ex, "Error incrementing view count for product ID: {ProductId}", productId);
                 throw;
+            }
+        }
+        // ProductService class'ýna ekleyin
+
+        public async Task<bool> SetMainImageAsync(int imageId)
+        {
+            try
+            {
+                var image = await _context.ProductImages.FindAsync(imageId);
+                if (image == null) return false;
+
+                // Ayný üründeki tüm resimlerin isMainImage'ini false yap
+                var productImages = await _context.ProductImages
+                    .Where(pi => pi.ProductId == image.ProductId)
+                    .ToListAsync();
+
+                foreach (var img in productImages)
+                {
+                    img.IsMainImage = false;
+                }
+
+                // Seçilen resmi ana resim yap
+                image.IsMainImage = true;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteImageAsync(int imageId)
+        {
+            try
+            {
+                var image = await _context.ProductImages.FindAsync(imageId);
+                if (image == null) return false;
+
+                // Dosyayý fiziksel olarak sil
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", image.ImageUrl.TrimStart('/'));
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+
+                _context.ProductImages.Remove(image);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 

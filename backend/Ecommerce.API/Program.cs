@@ -9,6 +9,7 @@ using ECommerce.API.Models;
 using ECommerce.API.Services;
 using ECommerce.API.Services.Interfaces;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,15 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.WriteIndented = true;
     });
+
+// File Upload Configuration - Dosya yükleme için gerekli
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10MB limit
+    options.ValueLengthLimit = int.MaxValue;
+    options.ValueCountLimit = int.MaxValue;
+    options.KeyLengthLimit = int.MaxValue;
+});
 
 // Database Context
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -93,6 +103,7 @@ if (builder.Environment.IsDevelopment())
             });
     });
 }
+
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
 
@@ -172,12 +183,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Static Files - Resim dosyalarýnýn servis edilmesi için ÇOK ÖNEMLÝ!
+app.UseStaticFiles();
+
 app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// wwwroot klasör yapýsýný oluþtur
+var webRootPath = app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+var imagesPath = Path.Combine(webRootPath, "images", "products");
+Directory.CreateDirectory(imagesPath);
 
 // Seed Database (Optional - for initial data)
 using (var scope = app.Services.CreateScope())

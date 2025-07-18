@@ -29,10 +29,14 @@ namespace ECommerce.API.Services.Interfaces
         // Product Images
         Task<ProductImage> AddProductImageAsync(int productId, ProductImage image);
         Task<bool> RemoveProductImageAsync(int imageId);
-        Task<bool> SetMainImageAsync(int productId, int imageId);
+        
         
         // Business Logic
         Task<bool> IncrementViewCountAsync(int productId);
         Task<decimal> CalculateDiscountPriceAsync(int productId, decimal discountPercentage);
+
+        // IProductService interface'ine ekleyin
+        Task<bool> SetMainImageAsync(int imageId);
+        Task<bool> DeleteImageAsync(int imageId);
     }
 }
