@@ -61,13 +61,14 @@ const UserManagement: React.FC = () => {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [editingUserRoles, setEditingUserRoles] = useState<string[]>([]);
   const [savingRoles, setSavingRoles] = useState(false);
+  const [tempSearchQuery, setTempSearchQuery] = useState(''); // Bu satırı ekle
 
   const pageSize = 20;
 
   useEffect(() => {
     fetchUsers();
     fetchRoles();
-  }, [currentPage, searchQuery]);
+  }, [currentPage, ]);
 
   const fetchRoles = async () => {
     try {
@@ -79,62 +80,72 @@ const UserManagement: React.FC = () => {
   };
 
   const fetchUsers = async (showRefreshing = false) => {
-    try {
-      if (showRefreshing) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        pageSize: pageSize.toString(),
-      });
-
-      if (searchQuery) {
-        params.append('search', searchQuery);
-      }
-
-      const response = await api.get<UsersResponse>(`/admin/users?${params}`);
-      
-      let filteredUsers = response.data.users;
-
-      // Apply filters on frontend
-      if (statusFilter !== 'all') {
-        filteredUsers = filteredUsers.filter(user => 
-          statusFilter === 'active' ? user.isActive : !user.isActive
-        );
-      }
-
-      if (roleFilter !== 'all') {
-        filteredUsers = filteredUsers.filter(user => 
-          user.roles.includes(roleFilter)
-        );
-      }
-
-      setUsers(filteredUsers);
-      setTotalPages(response.data.pagination.totalPages);
-      setTotalItems(response.data.pagination.totalItems);
-    } catch (error: any) {
-      console.error('Error fetching users:', error);
-      setError(error.response?.data?.message || 'Kullanıcılar yüklenirken hata oluştu');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
+  fetchUsersWithQuery(searchQuery, showRefreshing); // searchQuery'yi parametre olarak geç
+};
   const handleRefresh = () => {
     fetchUsers(true);
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setSearchQuery(tempSearchQuery);
     setCurrentPage(1);
-    fetchUsers();
+    fetchUsersWithQuery(tempSearchQuery);
   };
+  const fetchUsersWithQuery = async (query: string, showRefreshing = false) => {
+  try {
+    if (showRefreshing) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
 
+    const params = new URLSearchParams({
+      page: currentPage.toString(),
+      pageSize: pageSize.toString(),
+    });
+
+    if (query.trim()) { // Parametre olarak gelen query'yi kullan
+      params.append('search', query.trim());
+    }
+
+    const response = await api.get<UsersResponse>(`/admin/users?${params}`);
+    
+    let filteredUsers = response.data.users;
+
+    // Apply filters on frontend
+    if (statusFilter !== 'all') {
+      filteredUsers = filteredUsers.filter(user => 
+        statusFilter === 'active' ? user.isActive : !user.isActive
+      );
+    }
+
+    if (roleFilter !== 'all') {
+      filteredUsers = filteredUsers.filter(user => 
+        user.roles.includes(roleFilter)
+      );
+    }
+
+    setUsers(filteredUsers);
+    setTotalPages(response.data.pagination.totalPages);
+    setTotalItems(response.data.pagination.totalItems);
+  } catch (error: any) {
+    console.error('Error fetching users:', error);
+    setError(error.response?.data?.message || 'Kullanıcılar yüklenirken hata oluştu');
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
+const clearFilters = () => {
+  setSearchQuery('');
+  setTempSearchQuery('');
+  setStatusFilter('all');
+  setRoleFilter('all');
+  setCurrentPage(1);
+  setTimeout(() => fetchUsers(), 100);
+};
   const handleStatusChange = async (userId: number, newStatus: boolean) => {
     const action = newStatus ? 'aktif' : 'pasif';
     const user = users.find(u => u.id === userId);
@@ -338,8 +349,8 @@ const UserManagement: React.FC = () => {
               <input
                 type="text"
                 placeholder="Kullanıcı ara (isim, email)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={tempSearchQuery}
+                onChange={(e) => setTempSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </form>

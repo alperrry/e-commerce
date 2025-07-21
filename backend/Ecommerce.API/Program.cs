@@ -111,6 +111,7 @@ builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICartService, CartService>();
+// IJwtService'i dependency injection'a ekleyin
 
 // Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();

@@ -1,3 +1,4 @@
+// ProtectedRoute.tsx
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -5,23 +6,33 @@ import { RootState } from '../store';
 
 interface ProtectedRouteProps {
   adminOnly?: boolean;
+  sellerOnly?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ adminOnly = false }) => {
-  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ adminOnly, sellerOnly }) => {
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
 
+  // Önce authentication kontrolü
   if (!isAuthenticated) {
-    // Giriş yapmamış kullanıcıları login sayfasına yönlendir
     return <Navigate to="/login" replace />;
   }
 
-  // Şimdilik admin kontrolünü kaldıralım
-  // Backend'de role sistemi hazır olunca aşağıdaki satırları açın:
-  /*
-  if (adminOnly && user?.role !== 'Admin') {
+  // User yüklenmemişse bekle
+  if (!user) {
+    return <div>Loading...</div>;
+  }
+
+  const userRoles = user.role || [];
+
+  // Admin kontrolü
+  if (adminOnly && !userRoles.includes('Admin')) {
     return <Navigate to="/" replace />;
   }
-  */
+
+  // Seller kontrolü - Seller VEYA Admin olabilir
+  if (sellerOnly && !userRoles.includes('Seller') && !userRoles.includes('Admin')) {
+    return <Navigate to="/" replace />;
+  }
 
   return <Outlet />;
 };

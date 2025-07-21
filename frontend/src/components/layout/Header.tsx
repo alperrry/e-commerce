@@ -5,7 +5,7 @@ import * as Icons from 'react-icons/fi';
 import { RootState } from '../../store';
 import { logout } from '../../store/slices/authSlice';
 import { toggleCart } from '../../store/slices/cartSlice';
-import { isAdmin , debugAuth} from '../../utils/auth';
+import { isSeller , isAdmin , debugAuth} from '../../utils/auth';
 
 const FiSearch = Icons.FiSearch as any;
 const FiUser = Icons.FiUser as any;
@@ -97,6 +97,11 @@ const Header: React.FC = () => {
                       {isAdmin() && (
       <Link to="/admin/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-100 text-blue-600">
         Admin Paneli
+      </Link>
+    )}
+    {isSeller() && (
+      <Link to="/seller/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-100 text-blue-600">
+        Seller Paneli
       </Link>
     )}
                     <button

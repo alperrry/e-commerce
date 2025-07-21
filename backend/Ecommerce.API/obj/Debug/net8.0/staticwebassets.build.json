@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "EiWbcnCL0xjt/rdDzpI82BIkpL/RZWvzBoEGTfaA35Q=",
+  "Hash": "9DWXS8A9+LnniNfo5O1N4gSp5K6ctM+iybukq9USzsw=",
   "Source": "Ecommerce.API",
   "BasePath": "_content/Ecommerce.API",
   "Mode": "Default",
@@ -17,12 +17,12 @@
   ],
   "Assets": [
     {
-      "Identity": "C:\\Projects\\ecommerce-site\\backend\\Ecommerce.API\\wwwroot\\images\\products\\21f70ea1-1d3b-4c57-b735-16dfe50ff144.png",
+      "Identity": "C:\\Projects\\ecommerce-site\\backend\\Ecommerce.API\\wwwroot\\images\\products\\277a2270-cf3f-4fae-afc1-a56c6fb6b861.png",
       "SourceId": "Ecommerce.API",
       "SourceType": "Discovered",
       "ContentRoot": "C:\\Projects\\ecommerce-site\\backend\\Ecommerce.API\\wwwroot\\",
       "BasePath": "_content/Ecommerce.API",
-      "RelativePath": "images/products/21f70ea1-1d3b-4c57-b735-16dfe50ff144.png",
+      "RelativePath": "images/products/277a2270-cf3f-4fae-afc1-a56c6fb6b861.png",
       "AssetKind": "All",
       "AssetMode": "All",
       "AssetRole": "Primary",
@@ -33,7 +33,26 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\images\\products\\21f70ea1-1d3b-4c57-b735-16dfe50ff144.png"
+      "OriginalItemSpec": "wwwroot\\images\\products\\277a2270-cf3f-4fae-afc1-a56c6fb6b861.png"
+    },
+    {
+      "Identity": "C:\\Projects\\ecommerce-site\\backend\\Ecommerce.API\\wwwroot\\images\\products\\aa593bcc-d5e0-4ca9-99ca-419eb41b582f.png",
+      "SourceId": "Ecommerce.API",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Projects\\ecommerce-site\\backend\\Ecommerce.API\\wwwroot\\",
+      "BasePath": "_content/Ecommerce.API",
+      "RelativePath": "images/products/aa593bcc-d5e0-4ca9-99ca-419eb41b582f.png",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\images\\products\\aa593bcc-d5e0-4ca9-99ca-419eb41b582f.png"
     }
   ]
 }

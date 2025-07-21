@@ -76,7 +76,7 @@ namespace ECommerce.API.Controllers
 
                 // Generate JWT token
                 var token = await GenerateJwtToken(user);
-
+                var roles = await _userManager.GetRolesAsync(user);
                 return Ok(new
                 {
                     message = "User registered successfully",
@@ -86,7 +86,8 @@ namespace ECommerce.API.Controllers
                         id = user.Id,
                         email = user.Email,
                         firstName = user.FirstName,
-                        lastName = user.LastName
+                        lastName = user.LastName,
+                        role = roles.ToList()
                     }
                 });
             }
@@ -115,7 +116,7 @@ namespace ECommerce.API.Controllers
             {
                 // Generate JWT token
                 var token =await GenerateJwtToken(user);
-
+                var roles = await _userManager.GetRolesAsync(user);
                 return Ok(new
                 {
                     message = "Login successful",
@@ -125,7 +126,8 @@ namespace ECommerce.API.Controllers
                         id = user.Id,
                         email = user.Email,
                         firstName = user.FirstName,
-                        lastName = user.LastName
+                        lastName = user.LastName,
+                        role = roles.ToList()
                     }
                 });
             }

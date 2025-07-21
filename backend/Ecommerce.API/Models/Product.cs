@@ -12,11 +12,12 @@ namespace ECommerce.API.Models
         public int CategoryId { get; set; }
         public bool IsFeatured { get; set; } = false;
         public int ViewCount { get; set; } = 0;
-        
+       
         // Navigation Properties
         public virtual Category? Category { get; set; }
         public virtual ICollection<ProductImage>? Images { get; set; }
         public virtual ICollection<CartItem>? CartItems { get; set; }
         public virtual ICollection<OrderItem>? OrderItems { get; set; }
+        
     }
 }

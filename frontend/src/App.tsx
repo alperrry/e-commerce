@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import Header from './components/layout/Header';
+
 import Home from './pages/Home';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
@@ -13,10 +13,11 @@ import UserProfile from './pages/UserProfile';
 import Wishlist from './pages/Wishlist';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import CartDrawer from './components/cart/CartDrawer';
+
 import { fetchCart } from './store/slices/cartSlice';
 import { AppDispatch } from './store';
 import CategoryManagement from './pages/admin/CategoryManagement';
+import UserLayout from './components/layout/UserLayout';
 // Admin imports
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -24,6 +25,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ProductManagement from './pages/admin/ProductManagement';
 import UserManagement from './pages/admin/UserManagement';
 import OrderManagement from './pages/admin/OrderManagement';
+import SellerLayout from './components/seller/SellerLayout';
+import SellerDashboard from './pages/seller/SellerDashboard';
+import SellerProductManagement from './pages/seller/SellerProductManagement';
+import SellerOrderManagement from './pages/seller/SellerOrderManagement';
 function App() {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -34,11 +39,11 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      <CartDrawer />
 
       <main>
         <Routes>
+
+          <Route element={<UserLayout />}>     
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:id" element={<ProductDetail />} />
@@ -50,22 +55,33 @@ function App() {
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-
-          {/* Admin Routes */}
-          <Route element={<ProtectedRoute adminOnly={true} />}>
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="dashboard" element={<AdminDashboard />} /> {/* Bu satırı ekleyin */}
-              <Route path="categories" element={<CategoryManagement />} />
-              <Route path="products" element={<ProductManagement />} />
-              <Route path="users" element={<UserManagement />} />
-              <Route path="orders" element={<OrderManagement />} />
-              {/* Diğer admin sayfaları buraya eklenecek */}
-            </Route>
+        </Route>
+        {/* Admin Routes */}
+        <Route element={<ProtectedRoute adminOnly={true} />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="dashboard" element={<AdminDashboard />} /> {/* Bu satırı ekleyin */}
+            <Route path="categories" element={<CategoryManagement />} />
+            <Route path="products" element={<ProductManagement />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="orders" element={<OrderManagement />} />
+            {/* Diğer admin sayfaları buraya eklenecek */}
           </Route>
-        </Routes>
-      </main>
-    </div>
+        </Route>
+
+         // Route'ları da geçici olarak yoruma alın
+        {/* Seller Routes - Sayfalar oluşturulduktan sonra açılacak */}
+        <Route element={<ProtectedRoute sellerOnly={true} />}>
+          <Route path="/seller" element={<SellerLayout />}>
+            <Route index element={<SellerDashboard />} />
+            <Route path="dashboard" element={<SellerDashboard />} />
+              <Route path="products" element={<SellerProductManagement />} />
+              <Route path="orders" element={<SellerOrderManagement />} />
+          </Route>
+        </Route>
+      </Routes>
+    </main>
+    </div >
   );
 }
 

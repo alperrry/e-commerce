@@ -38,5 +38,7 @@ namespace ECommerce.API.Services.Interfaces
         // IProductService interface'ine ekleyin
         Task<bool> SetMainImageAsync(int imageId);
         Task<bool> DeleteImageAsync(int imageId);
+
+        
     }
 }

@@ -23,6 +23,28 @@ export const isAdmin = (): boolean => {
     return false;
   }
 };
+export const isSeller = (): boolean => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const decodedPayload = JSON.parse(atob(payloadBase64));
+
+    // Microsoft schema'sındaki role claim'i
+    const roleClaim = decodedPayload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+    
+    console.log('Role claim:', roleClaim); // Debug için
+    
+    if (Array.isArray(roleClaim)) {
+      return roleClaim.includes("Seller");
+    }
+
+    return roleClaim === "Seller";
+  } catch (error) {
+    console.log('isSeller error:', error);
+    return false;
+  }};
 
 export const getUserRole = (): string | null => {
   const token = localStorage.getItem('token');
