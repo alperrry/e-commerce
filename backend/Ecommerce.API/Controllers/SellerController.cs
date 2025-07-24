@@ -15,15 +15,18 @@ namespace ECommerce.API.Controllers
         private readonly IProductService _productService;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<SellerController> _logger;
+        private readonly IOrderService _orderService;
 
         public SellerController(
             IProductService productService,
             ApplicationDbContext context,
-            ILogger<SellerController> logger)
+            ILogger<SellerController> logger,
+            IOrderService orderService)
         {
             _productService = productService;
             _context = context;
             _logger = logger;
+            _orderService = orderService;
         }
 
         // GET: api/seller/dashboard
@@ -187,27 +190,23 @@ namespace ECommerce.API.Controllers
             }
         }
 
-        // PUT: api/seller/orders/5/status - Admin'den kopyalandý
+        // PUT: api/seller/orders/5/status - Bu metodu deðiþtirin (159-180. satýrlar)
         [HttpPut("orders/{id}/status")]
         public async Task<ActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusModel model)
         {
             try
             {
-                var order = await _context.Orders.FindAsync(id);
+                // OrderService metodunu kullan - email gönderir
+                var success = await _orderService.UpdateOrderStatusAsync(id, model.Status);
 
-                if (order == null)
+                if (!success)
                 {
                     return NotFound(new { message = "Sipariþ bulunamadý" });
                 }
 
-                order.Status = model.Status;
-                order.UpdatedAt = DateTime.UtcNow;
+                _logger.LogInformation("Seller updated order {OrderId} status to {Status} with email notification", id, model.Status);
 
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Seller updated order {OrderId} status to {Status}", id, model.Status);
-
-                return Ok(new { message = "Sipariþ durumu baþarýyla güncellendi" });
+                return Ok(new { message = "Sipariþ durumu baþarýyla güncellendi ve email gönderildi" });
             }
             catch (Exception ex)
             {
@@ -216,17 +215,18 @@ namespace ECommerce.API.Controllers
             }
         }
 
+
         // GET: api/seller/products - ProductsController'dan kopyalandý
         [HttpGet("products")]
         public async Task<ActionResult<object>> GetProducts(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10,
-            [FromQuery] string? search = null,
-            [FromQuery] int? categoryId = null,
-            [FromQuery] decimal? minPrice = null,
-            [FromQuery] decimal? maxPrice = null,
-            [FromQuery] string? sortBy = "name",
-            [FromQuery] string? stock = null)
+                [FromQuery] int page = 1,
+                [FromQuery] int pageSize = 10,
+                [FromQuery] string? search = null,
+                [FromQuery] int? categoryId = null,
+                [FromQuery] decimal? minPrice = null,
+                [FromQuery] decimal? maxPrice = null,
+                [FromQuery] string? sortBy = "name",
+                [FromQuery] string? stock = null)
         {
             try
             {
@@ -424,6 +424,11 @@ namespace ECommerce.API.Controllers
             {
                 return StatusCode(500, new { message = "An error occurred while adding the image", error = ex.Message });
             }
+        }
+        public class UpdateOrderStatusModel
+        {
+            public OrderStatus Status { get; set; }
+            public string? TrackingNumber { get; set; }
         }
     }
 

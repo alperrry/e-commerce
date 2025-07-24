@@ -55,7 +55,14 @@ interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
-
+enum OrderStatus {
+  Pending = 0,
+  Processing = 1,
+  Shipped = 2,
+  Delivered = 3,
+  Cancelled = 4,
+  Refunded = 5
+}
 const SellerOrderManagement: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -114,14 +121,19 @@ const SellerOrderManagement: React.FC = () => {
   };
 
   const handleStatusUpdate = async (orderId: number, newStatus: string) => {
-    try {
-      await api.put(`/seller/orders/${orderId}/status`, { status: newStatus });
-      await fetchOrders();
-    } catch (error: any) {
-      console.error('Error updating order status:', error);
-      setError(error.response?.data?.message || 'Sipariş durumu güncellenirken hata oluştu');
-    }
-  };
+  try {
+    // String status'u integer'a çevir
+    const statusValue = OrderStatus[newStatus as keyof typeof OrderStatus];
+    
+    await api.put(`/seller/orders/${orderId}/status`, { 
+      status: statusValue  // Integer değer gönder
+    });
+    await fetchOrders();
+  } catch (error: any) {
+    console.error('Error updating order status:', error);
+    setError(error.response?.data?.message || 'Sipariş durumu güncellenirken hata oluştu');
+  }
+};
 
   const openOrderModal = (order: Order) => {
     setSelectedOrder(order);

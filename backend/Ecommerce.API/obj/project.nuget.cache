@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "jTeenIZH6bQSGVMqr53C+G16XelQPvOK3iShTuHy7sQqxzyrduWG3/DBAYzfH3hDSlJ+vATfT2vyBCCG9exYYw==",
+  "dgSpecHash": "mnGFkeYJfFj3lqxa0h52ic7DYm4FsCB/GNJB50BjT24ZWfFcFz/vt5zd0/5ktLsfsSU4kcx3cIYKVmcwWkeppw==",
   "success": true,
   "projectFilePath": "C:\\Projects\\ecommerce-site\\backend\\Ecommerce.API\\Ecommerce.API.csproj",
   "expectedPackageFiles": [
@@ -53,6 +53,7 @@
     "C:\\Users\\alper\\.nuget\\packages\\mono.texttemplating\\3.0.0\\mono.texttemplating.3.0.0.nupkg.sha512",
     "C:\\Users\\alper\\.nuget\\packages\\npgsql\\9.0.3\\npgsql.9.0.3.nupkg.sha512",
     "C:\\Users\\alper\\.nuget\\packages\\npgsql.entityframeworkcore.postgresql\\9.0.4\\npgsql.entityframeworkcore.postgresql.9.0.4.nupkg.sha512",
+    "C:\\Users\\alper\\.nuget\\packages\\resend\\0.1.4\\resend.0.1.4.nupkg.sha512",
     "C:\\Users\\alper\\.nuget\\packages\\swashbuckle.aspnetcore\\6.4.0\\swashbuckle.aspnetcore.6.4.0.nupkg.sha512",
     "C:\\Users\\alper\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.4.0\\swashbuckle.aspnetcore.swagger.6.4.0.nupkg.sha512",
     "C:\\Users\\alper\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.4.0\\swashbuckle.aspnetcore.swaggergen.6.4.0.nupkg.sha512",

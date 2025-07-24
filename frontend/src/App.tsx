@@ -13,11 +13,15 @@ import UserProfile from './pages/UserProfile';
 import Wishlist from './pages/Wishlist';
 import Login from './pages/Login';
 import Register from './pages/Register';
-
+import EmailVerification from './pages/EmailVerification';
 import { fetchCart } from './store/slices/cartSlice';
 import { AppDispatch } from './store';
 import CategoryManagement from './pages/admin/CategoryManagement';
 import UserLayout from './components/layout/UserLayout';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 // Admin imports
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -55,6 +59,11 @@ function App() {
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-email" element={<EmailVerification />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+<Route path="/terms" element={<TermsOfService />} />
         </Route>
         {/* Admin Routes */}
         <Route element={<ProtectedRoute adminOnly={true} />}>

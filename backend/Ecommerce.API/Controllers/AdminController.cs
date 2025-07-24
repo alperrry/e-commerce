@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ECommerce.API.Data;
 using ECommerce.API.Models;
-
+using ECommerce.API.Services.Interfaces;
 namespace ECommerce.API.Controllers
 {
     [Route("api/[controller]")]
@@ -15,15 +15,18 @@ namespace ECommerce.API.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<User> _userManager;
         private readonly RoleManager<IdentityRole<int>> _roleManager;
+        private readonly IOrderService _orderService;
 
         public AdminController(
             ApplicationDbContext context,
             UserManager<User> userManager,
-            RoleManager<IdentityRole<int>> roleManager)
+            RoleManager<IdentityRole<int>> roleManager,
+            IOrderService orderService)
         {
             _context = context;
             _userManager = userManager;
             _roleManager = roleManager;
+            _orderService = orderService;
         }
 
         // GET: api/admin/dashboard/stats
@@ -247,32 +250,43 @@ namespace ECommerce.API.Controllers
             });
         }
 
-        // PUT: api/admin/orders/5/status
+        // PUT: api/admin/orders/5/status - Bu metodu değiştirin
         [HttpPut("orders/{id}/status")]
         public async Task<ActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusModel model)
         {
-            var order = await _context.Orders.FindAsync(id);
-
-            if (order == null)
+            try
             {
-                return NotFound();
+                // OrderService metodunu kullan - email gönderir
+                var success = await _orderService.UpdateOrderStatusAsync(id, model.Status);
+
+                if (!success)
+                {
+                    return NotFound(new { message = "Order not found" });
+                }
+
+                // Tracking number varsa ayrıca işle
+                if (model.Status == OrderStatus.Shipped && !string.IsNullOrEmpty(model.TrackingNumber))
+                {
+                    // Tracking number logic buraya eklenebilir
+                    var order = await _context.Orders.FindAsync(id);
+                    if (order != null)
+                    {
+                        // order.TrackingNumber = model.TrackingNumber; // Eğer model'de bu field varsa
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                return Ok(new { message = "Order status updated successfully and email sent" });
             }
-
-            order.Status = model.Status;
-            order.UpdatedAt = DateTime.UtcNow;
-
-            if (model.Status == OrderStatus.Shipped && !string.IsNullOrEmpty(model.TrackingNumber))
+            catch (Exception ex)
             {
-                // Add tracking number logic here
+                return StatusCode(500, new { message = "Error updating order status", error = ex.Message });
             }
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Order status updated successfully" });
         }
+    
 
-        // GET: api/admin/users
-        [HttpGet("users")]
+    // GET: api/admin/users
+    [HttpGet("users")]
         public async Task<ActionResult<object>> GetUsers(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,

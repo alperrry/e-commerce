@@ -112,7 +112,14 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICartService, CartService>();
 // IJwtService'i dependency injection'a ekleyin
+// HttpClient for Email Service
+builder.Services.AddHttpClient<EmailService>();
+// Email Configuration
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
 
+// Email Service
+builder.Services.AddScoped<IEmailService, EmailService>();
 // Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

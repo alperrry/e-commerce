@@ -9,11 +9,13 @@ namespace ECommerce.API.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<OrderService> _logger;
+        private readonly IEmailService _emailService;
 
-        public OrderService(ApplicationDbContext context, ILogger<OrderService> logger)
+        public OrderService(ApplicationDbContext context, ILogger<OrderService> logger, IEmailService emailService)
         {
             _context = context;
             _logger = logger;
+            _emailService = emailService;
         }
 
         public async Task<IEnumerable<Order>> GetUserOrdersAsync(int userId)
@@ -56,7 +58,7 @@ namespace ECommerce.API.Services
         {
             // Transaction kullanmıyoruz - InMemory database desteklemiyor
             // using var transaction = await _context.Database.BeginTransactionAsync();
-            
+
             try
             {
                 // Get user's cart
@@ -102,7 +104,7 @@ namespace ECommerce.API.Services
                     OrderNumber = await GenerateOrderNumberAsync(),
                     OrderDate = DateTime.UtcNow,
                     Status = OrderStatus.Pending,
-                    
+
                     // Copy address details
                     ShippingFirstName = address.FirstName,
                     ShippingLastName = address.LastName,
@@ -112,18 +114,18 @@ namespace ECommerce.API.Services
                     ShippingCity = address.City,
                     ShippingPostalCode = address.PostalCode,
                     ShippingCountry = address.Country,
-                    
+
                     // Payment details
                     PaymentMethod = paymentMethod,
-                    
+
                     // Calculate totals
                     TotalAmount = cart.CartItems.Sum(ci => ci.Quantity * ci.Price),
                     ShippingCost = await CalculateShippingCostAsync(addressId),
                     TaxAmount = 0,
-                    
+
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
-                    
+
                     OrderItems = new List<OrderItem>()
                 };
 
@@ -162,6 +164,30 @@ namespace ECommerce.API.Services
 
                 await _context.SaveChangesAsync();
                 // await transaction.CommitAsync();
+
+                // Sipariş onay emaili gönder
+                try
+                {
+                    if (!string.IsNullOrEmpty(user.Email))
+                    {
+                        var emailSent = await _emailService.SendOrderConfirmationEmailAsync(
+                            user.Email,
+                            user.FirstName,
+                            order.OrderNumber,
+                            order.TotalAmount);
+
+                        if (!emailSent)
+                        {
+                            _logger.LogWarning("Order confirmation email could not be sent to {Email} for order {OrderNumber}",
+                                user.Email, order.OrderNumber);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending order confirmation email for order {OrderNumber}", order.OrderNumber);
+                    // Email hatası sipariş oluşturmayı engellemez
+                }
 
                 _logger.LogInformation("Order created successfully: {OrderNumber}", order.OrderNumber);
                 return order;
@@ -240,18 +266,47 @@ namespace ECommerce.API.Services
         {
             try
             {
-                var order = await _context.Orders.FindAsync(orderId);
+                var order = await _context.Orders
+                    .Include(o => o.User)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+
                 if (order == null)
                 {
                     return false;
                 }
 
+                var oldStatus = order.Status;
                 order.Status = newStatus;
                 order.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Order {OrderId} status updated to {Status}", orderId, newStatus);
+                // Status değişikliği email gönder
+                try
+                {
+                    if (order.User != null && !string.IsNullOrEmpty(order.User.Email))
+                    {
+                        var emailSent = await _emailService.SendOrderStatusUpdateEmailAsync(
+                            order.User.Email,
+                            order.User.FirstName,
+                            order.OrderNumber,
+                            newStatus.ToString());
+
+                        if (!emailSent)
+                        {
+                            _logger.LogWarning("Order status update email could not be sent to {Email} for order {OrderNumber}",
+                                order.User.Email, order.OrderNumber);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending order status update email for order {OrderNumber}", order.OrderNumber);
+                    // Email hatası status güncellemeyi engellemez
+                }
+
+                _logger.LogInformation("Order {OrderId} status updated from {OldStatus} to {NewStatus}",
+                    orderId, oldStatus, newStatus);
                 return true;
             }
             catch (Exception ex)
@@ -421,7 +476,7 @@ namespace ECommerce.API.Services
             if (order.OrderItems == null || !order.OrderItems.Any()) return false;
             if (order.TotalAmount <= 0) return false;
             if (string.IsNullOrEmpty(order.ShippingAddress)) return false;
-            
+
             return true;
         }
 
@@ -485,8 +540,8 @@ namespace ECommerce.API.Services
         }
 
         public async Task<(IEnumerable<Order> orders, int totalItems)> GetAllOrdersAsync(
-            int page, 
-            int pageSize, 
+            int page,
+            int pageSize,
             OrderStatus? status = null,
             DateTime? startDate = null,
             DateTime? endDate = null)
