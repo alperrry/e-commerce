@@ -192,7 +192,7 @@ namespace ECommerce.API.Controllers
 
         // PUT: api/seller/orders/5/status - Bu metodu deðiþtirin (159-180. satýrlar)
         [HttpPut("orders/{id}/status")]
-        public async Task<ActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusModel model)
+        public async Task<ActionResult> SellerUpdateOrderStatus(int id, [FromBody] SellerUpdateOrderStatusModel model)
         {
             try
             {
@@ -425,7 +425,7 @@ namespace ECommerce.API.Controllers
                 return StatusCode(500, new { message = "An error occurred while adding the image", error = ex.Message });
             }
         }
-        public class UpdateOrderStatusModel
+        public class SellerUpdateOrderStatusModel
         {
             public OrderStatus Status { get; set; }
             public string? TrackingNumber { get; set; }

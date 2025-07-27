@@ -15,6 +15,261 @@ const FiRefreshCw = Icons.FiRefreshCw as any;
 const FiChevronDown = Icons.FiChevronDown as any;
 const FiChevronUp = Icons.FiChevronUp as any;
 const FiEye = Icons.FiEye as any;
+const FiAlertTriangle = Icons.FiAlertTriangle as any;
+
+// Modal interfaces
+interface CancelOrderModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  orderId: number;
+  orderNumber: string;
+  onSuccess: () => void;
+}
+
+interface RefundRequestModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  orderId: number;
+  orderNumber: string;
+  totalAmount: number;
+  onSuccess: () => void;
+}
+
+// Cancel Order Modal Component
+const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
+  isOpen,
+  onClose,
+  orderId,
+  orderNumber,
+  onSuccess
+}) => {
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reason.trim()) return;
+
+    setLoading(true);
+    try {
+      await api.post('/refund/cancel-order', {
+        orderId,
+        reason: reason.trim()
+      });
+      
+      alert('Sipariş başarıyla iptal edildi.');
+      onSuccess();
+      onClose();
+      setReason('');
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Sipariş iptal edilirken hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <FiAlertTriangle className="text-red-600" size={24} />
+          <h3 className="text-lg font-semibold">Siparişi İptal Et</h3>
+        </div>
+        
+        <p className="text-gray-600 mb-4">
+          <strong>#{orderNumber}</strong> numaralı siparişinizi iptal etmek istediğinizden emin misiniz?
+        </p>
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              İptal Nedeni <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="İptal nedeninizi açıklayın..."
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+              rows={3}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              disabled={loading}
+            >
+              Vazgeç
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+              disabled={loading || !reason.trim()}
+            >
+              {loading ? 'İptal Ediliyor...' : 'Siparişi İptal Et'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Refund Request Modal Component
+const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
+  isOpen,
+  onClose,
+  orderId,
+  orderNumber,
+  totalAmount,
+  onSuccess
+}) => {
+  const [reason, setReason] = useState('');
+  const [refundType, setRefundType] = useState<'full' | 'partial'>('full');
+  const [refundAmount, setRefundAmount] = useState(totalAmount);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (refundType === 'full') {
+      setRefundAmount(totalAmount);
+    }
+  }, [refundType, totalAmount]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reason.trim()) return;
+
+    setLoading(true);
+    try {
+      await api.post('/refund/request', {
+        orderId,
+        reason: reason.trim(),
+        amount: refundType === 'partial' ? refundAmount : null
+      });
+      
+      alert('İade talebi başarıyla oluşturuldu. Talebiniz incelendikten sonra email ile bilgilendirileceksiniz.');
+      onSuccess();
+      onClose();
+      setReason('');
+      setRefundType('full');
+      setRefundAmount(totalAmount);
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'İade talebi oluşturulurken hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <FiRefreshCw className="text-blue-600" size={24} />
+          <h3 className="text-lg font-semibold">İade Talebi Oluştur</h3>
+        </div>
+        
+        <p className="text-gray-600 mb-4">
+          <strong>#{orderNumber}</strong> numaralı siparişiniz için iade talebi oluşturun.
+        </p>
+
+        <form onSubmit={handleSubmit}>
+          {/* Refund Type Selection */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              İade Türü
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="full"
+                  checked={refundType === 'full'}
+                  onChange={(e) => setRefundType(e.target.value as 'full')}
+                  className="mr-2"
+                  disabled={loading}
+                />
+                <span>Tam İade (₺{totalAmount.toFixed(2)})</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="partial"
+                  checked={refundType === 'partial'}
+                  onChange={(e) => setRefundType(e.target.value as 'partial')}
+                  className="mr-2"
+                  disabled={loading}
+                />
+                <span>Kısmi İade</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Partial Refund Amount */}
+          {refundType === 'partial' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                İade Miktarı (₺)
+              </label>
+              <input
+                type="number"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(Number(e.target.value))}
+                min="1"
+                max={totalAmount}
+                step="0.01"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                disabled={loading}
+                required
+              />
+            </div>
+          )}
+
+          {/* Reason */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              İade Nedeni <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="İade nedeninizi açıklayın..."
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+              rows={3}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              disabled={loading}
+            >
+              Vazgeç
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              disabled={loading || !reason.trim()}
+            >
+              {loading ? 'Talep Oluşturuluyor...' : 'İade Talebi Oluştur'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const OrderHistory: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +277,11 @@ const OrderHistory: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
+  
+  // Modal states
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -75,6 +335,23 @@ const OrderHistory: React.FC = () => {
 
   const toggleOrderExpansion = (orderId: number) => {
     setExpandedOrder(expandedOrder === orderId ? null : orderId);
+  };
+
+  // Handle cancel order
+  const handleCancelOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setCancelModalOpen(true);
+  };
+
+  // Handle refund request
+  const handleRefundRequest = (order: Order) => {
+    setSelectedOrder(order);
+    setRefundModalOpen(true);
+  };
+
+  // Handle modal success
+  const handleModalSuccess = () => {
+    fetchOrders(); // Refresh orders list
   };
 
   if (loading) {
@@ -151,23 +428,6 @@ const OrderHistory: React.FC = () => {
                       </span>
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  {/*<div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/order/${order.orderNumber}`);
-                      }}
-                      className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
-                      title="Sipariş Detayı"
-                    >
-                      <FiEye size={20} />
-                    </button>
-                    <div className="text-gray-400">
-                      {isExpanded ? <FiChevronUp size={20} /> : <FiChevronDown size={20} />}
-                    </div>
-                  </div>*/}
                 </div>
               </div>
 
@@ -244,6 +504,29 @@ const OrderHistory: React.FC = () => {
 
                   {/* Order Actions */}
                   <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
+                    {/* Cancel Order Button */}
+                    {(order.status === OrderStatus.Pending || order.status === OrderStatus.Processing) && (
+                      <button
+                        onClick={() => handleCancelOrder(order)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+                      >
+                        <FiX size={16} />
+                        Siparişi İptal Et
+                      </button>
+                    )}
+
+                    {/* Refund Request Button - SHIPPED + DELIVERED */}
+                    {(order.status === OrderStatus.Delivered || order.status === OrderStatus.Shipped) && (
+                      <button
+                        onClick={() => handleRefundRequest(order)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                      >
+                        <FiRefreshCw size={16} />
+                        {order.status === OrderStatus.Shipped ? 'Kargo İade Et' : 'İade Talep Et'}
+                      </button>
+                    )}
+
+                    {/* Other existing buttons */}
                     {order.status === OrderStatus.Delivered && (
                       <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
                         Ürünleri Değerlendir
@@ -254,17 +537,6 @@ const OrderHistory: React.FC = () => {
                         Kargo Takibi
                       </button>
                     )}
-                    {(order.status === OrderStatus.Pending || order.status === OrderStatus.Processing) && (
-                      <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
-                        Siparişi İptal Et
-                      </button>
-                    )}
-                   {/* <button
-                      onClick={() => navigate(`/order/${order.orderNumber}`)}
-                      className="px-4 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition"
-                    >
-                      Detaylı Görüntüle
-                    </button>*/}
                   </div>
                 </div>
               )}
@@ -272,6 +544,28 @@ const OrderHistory: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Modals */}
+      {selectedOrder && (
+        <>
+          <CancelOrderModal
+            isOpen={cancelModalOpen}
+            onClose={() => setCancelModalOpen(false)}
+            orderId={selectedOrder.id}
+            orderNumber={selectedOrder.orderNumber}
+            onSuccess={handleModalSuccess}
+          />
+          
+          <RefundRequestModal
+            isOpen={refundModalOpen}
+            onClose={() => setRefundModalOpen(false)}
+            orderId={selectedOrder.id}
+            orderNumber={selectedOrder.orderNumber}
+            totalAmount={selectedOrder.totalAmount}
+            onSuccess={handleModalSuccess}
+          />
+        </>
+      )}
     </div>
   );
 };

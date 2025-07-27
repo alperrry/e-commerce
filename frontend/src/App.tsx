@@ -33,6 +33,7 @@ import SellerLayout from './components/seller/SellerLayout';
 import SellerDashboard from './pages/seller/SellerDashboard';
 import SellerProductManagement from './pages/seller/SellerProductManagement';
 import SellerOrderManagement from './pages/seller/SellerOrderManagement';
+import AdminRefundManagement from './pages/admin/AdminRefundManagement';
 function App() {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -74,6 +75,7 @@ function App() {
             <Route path="products" element={<ProductManagement />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="orders" element={<OrderManagement />} />
+            <Route path="refunds" element={<AdminRefundManagement />} />
             {/* Diğer admin sayfaları buraya eklenecek */}
           </Route>
         </Route>

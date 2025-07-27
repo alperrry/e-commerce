@@ -30,6 +30,7 @@ const AdminLayout: React.FC = () => {
     { path: '/admin/orders', label: 'Sipariş Yönetimi', icon: FiShoppingBag },
     { path: '/admin/users', label: 'Kullanıcı Yönetimi', icon: FiUsers },
     { path: '/admin/categories', label: 'Kategori Yönetimi', icon: FiGrid },
+   { path: '/admin/refunds', label: 'İade Yönetimi', icon: FiShoppingBag },
   ];
 
   const isActive = (path: string, exact?: boolean) => {

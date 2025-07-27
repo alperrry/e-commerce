@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using ECommerce.API.Models;
@@ -21,6 +21,7 @@ namespace ECommerce.API.Data
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Address> Addresses { get; set; }
+        public DbSet<RefundRequest> RefundRequests { get; set; } // 🆕 YENİ EKLENEN
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -98,6 +99,13 @@ namespace ECommerce.API.Data
                 .Property(o => o.TaxAmount)
                 .HasColumnType("decimal(18,2)");
 
+            // Order CancelledBy relationship - 🆕 YENİ EKLENEN
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.CancelledBy)
+                .WithMany()
+                .HasForeignKey(o => o.CancelledByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // OrderItem relationships
             modelBuilder.Entity<OrderItem>()
                 .HasOne(oi => oi.Order)
@@ -119,6 +127,29 @@ namespace ECommerce.API.Data
                 .Property(oi => oi.TotalPrice)
                 .HasColumnType("decimal(18,2)");
 
+            // RefundRequest relationships - 🆕 YENİ EKLENEN
+            modelBuilder.Entity<RefundRequest>()
+                .HasOne(rr => rr.Order)
+                .WithMany(o => o.RefundRequests)
+                .HasForeignKey(rr => rr.OrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<RefundRequest>()
+                .HasOne(rr => rr.RequestedBy)
+                .WithMany()
+                .HasForeignKey(rr => rr.RequestedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<RefundRequest>()
+                .HasOne(rr => rr.ProcessedBy)
+                .WithMany()
+                .HasForeignKey(rr => rr.ProcessedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<RefundRequest>()
+                .Property(rr => rr.RefundAmount)
+                .HasColumnType("decimal(18,2)");
+
             // Address relationships
             modelBuilder.Entity<Address>()
                 .HasOne(a => a.User)
@@ -134,8 +165,6 @@ namespace ECommerce.API.Data
             modelBuilder.Entity<Order>()
                 .HasIndex(o => o.OrderNumber)
                 .IsUnique();
-
-           
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

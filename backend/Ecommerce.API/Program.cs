@@ -120,6 +120,7 @@ builder.Services.Configure<EmailSettings>(
 
 // Email Service
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IRefundService, RefundService>();
 // Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
